@@ -1,0 +1,3 @@
+[submodule "app/src/main/cpp/sss"]
+	path = app/src/main/cpp/sss
+	url = https://github.com/dsprenkels/sss.git
