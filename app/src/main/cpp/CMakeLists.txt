@@ -9,5 +9,4 @@ add_library(sss-jni SHARED
 
 # Include libraries needed for sss-jni lib
 target_link_libraries(sss-jni
-                      android
-                      log)
+                      android)

@@ -9,6 +9,8 @@
 
 #define DATA_LEN 64
 #define SHARE_LEN 113
+#define KEY_LEN 32
+#define KEYSHARE_LEN 33
 
 static jint throw(JNIEnv *env, char *className, char *message)
 {
@@ -114,4 +116,81 @@ JNIEXPORT jbyteArray JNICALL Java_com_dsprenkels_sss_android_jni_ShamirSecretSha
     }
     (*env)->SetByteArrayRegion(env, data, 0, DATA_LEN, out);
     return data;
+}
+
+JNIEXPORT jobjectArray JNICALL Java_com_dsprenkels_sss_android_jni_ShamirSecretSharing_createKeyshares(
+        JNIEnv *env, jobject this,
+        jbyteArray key, jint count, jint threshold)
+{
+    jsize key_len = (*env)->GetArrayLength(env, key);
+    if (key_len != KEY_LEN) {
+        throw(env, "java/lang/IllegalArgumentException", "invalid key length");
+        return NULL;
+    }
+    if (!checkNK(env, count, threshold)) {
+        return NULL;
+    }
+
+    // Allocate i/o buffers
+    jbyte in[KEY_LEN] = {0};
+    jbyte out[count * KEYSHARE_LEN];
+    memset(out, 0, (size_t) count * KEYSHARE_LEN);
+
+    // Call sss_create_shares
+    (*env)->GetByteArrayRegion(env, key, 0, KEY_LEN, in);
+    sss_create_keyshares((sss_Keyshare*) out, (const uint8_t*) in, count, threshold);
+
+    // Group output shares into chunks of SHARE_LEN size
+    jclass clsArray = (*env)->FindClass(env, "[B");
+    if (clsArray == NULL) {
+        throw(env, "java/lang/NoClassDefFoundError", "no class '[B' found");
+        return NULL;
+    }
+    jobjectArray keyshares = (*env)->NewObjectArray(env, count, clsArray, NULL);
+    for (int idx = 0; idx < count; ++idx) {
+        jbyteArray tmp = (*env)->NewByteArray(env, KEYSHARE_LEN);
+        if (tmp == NULL) {
+            throw(env, "java/lang/OutOfMemoryError", "could not allocate jbyteArray");
+            return NULL;
+        }
+        (*env)->SetByteArrayRegion(env, tmp, 0, KEYSHARE_LEN, &out[idx * KEYSHARE_LEN]);
+        (*env)->SetObjectArrayElement(env, keyshares, idx, tmp);
+    }
+    return keyshares;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_dsprenkels_sss_android_jni_ShamirSecretSharing_combineKeyshares(
+        JNIEnv *env, jobject this, jobjectArray keyshares)
+{
+    // Fail if the amount of shares is not too big
+    jsize count = (*env)->GetArrayLength(env, keyshares);
+    if (count > 255) {
+        throw(env, "java/lang/IllegalArgumentException", "too many keyshares given");
+        return NULL;
+    }
+
+    // Pack the shares into a consecutive buffer
+    jbyte tmp[count * KEYSHARE_LEN];
+    memset(tmp, 0, count * KEYSHARE_LEN);
+    for (int idx = 0; idx < count; ++idx) {
+        jbyteArray keyshare = (*env)->GetObjectArrayElement(env, keyshares, idx);
+        if ((*env)->GetArrayLength(env, keyshare) != KEYSHARE_LEN) {
+            throw(env, "java/lang/IllegalArgumentException", "invalid keyshare length");
+            return NULL;
+        }
+        (*env)->GetByteArrayRegion(env, keyshare, 0, KEYSHARE_LEN, &tmp[idx * KEYSHARE_LEN]);
+    }
+
+    // Call sss library
+    jbyte out[KEY_LEN] = {0};
+    sss_combine_keyshares((uint8_t*) out, (const sss_Keyshare*) tmp, count);
+
+    // Convert result to byte array
+    jbyteArray key = (*env)->NewByteArray(env, KEY_LEN);
+    if (key == NULL) {
+        throw(env, "java/lang/OutOfMemoryError", "could not allocate array for restored key");
+        return NULL;
+    }
+    (*env)->SetByteArrayRegion(env, key, 0, KEY_LEN, out);
+    return key;
 }
