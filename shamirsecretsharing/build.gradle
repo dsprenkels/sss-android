@@ -27,5 +27,5 @@ android {
 
 dependencies {
     androidTestCompile 'com.android.support.test:testing-support-lib:0.1'
-//    androidTestCompile 'junit:junit:4.12'
+
 }
