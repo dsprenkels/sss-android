@@ -10,8 +10,8 @@ android:
 before_install:
   - # https://github.com/travis-ci/travis-ci/issues/6617#issuecomment-274684121
   - mkdir -p "$ANDROID_HOME/licenses"
-  - echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
-  - echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+  - echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" >"$ANDROID_HOME/licenses/android-sdk-license"
+  - echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" >"$ANDROID_HOME/licenses/android-sdk-preview-license"
 install:
   - # https://github.com/travis-ci/travis-ci/issues/5395#issue-124658713
   - curl -L https://dl.google.com/android/repository/android-ndk-r15c-linux-x86_64.zip -O
@@ -20,5 +20,6 @@ install:
   - export LOCAL_ANDROID_NDK_HOME="$ANDROID_NDK_HOME"
   - export LOCAL_ANDROID_NDK_HOST_PLATFORM="linux-x86_64"
   - export PATH=$PATH:${ANDROID_NDK_HOME}
+  - sdkmanager "cmake;3.6.3155560"
 script:
   - ./gradlew build
